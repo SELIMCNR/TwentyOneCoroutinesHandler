@@ -1,0 +1,88 @@
+package com.selimcinar.coroutineshandler
+
+import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
+
+        /*
+        lifecycleScope.launch {
+            //this won't work. exceptions propagate in coroutines and we need corutineexceptionhandler
+            try {
+                launch {
+                    throw Exception("error")
+                }
+            } catch (e: Exception) {
+                print(e.stackTrace)
+            }
+        }
+
+
+
+        lifecycleScope.launch {
+            //this will work and it won't be propagated up but it won't be feasible to do everything
+            //in try and catch in a coroutine
+            launch {
+                try {
+                    throw Exception("error")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        */
+
+
+        val handler = CoroutineExceptionHandler {context, throwable ->
+            println("exception: " + throwable)
+        }
+
+        lifecycleScope.launch(handler) {
+            //this will cancel the other coroutine without executing it
+            //since one error will cancel all the launches in this coroutine scope
+            launch {
+                throw Exception("error")
+            }
+            launch {
+                delay(500L)
+                println("this is executed")
+            }
+        }
+
+        lifecycleScope.launch(handler) {
+            //you can use supervisorScope to deal with this  önerilen handler yapısı bu
+            //second launch will get executed in this case
+
+            supervisorScope {
+                launch {
+                    throw Exception("error")
+                }
+                launch {
+                    delay(500L)
+                    println("this is executed")
+                }
+            }
+        }
+
+        //we can use the handler in other cases as well such as:
+
+        CoroutineScope(Dispatchers.Main + handler).launch {
+            launch {
+                throw Exception("error in a coroutine scope")
+            }
+        }
+    }
+}
